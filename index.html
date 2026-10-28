@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pulse Arena</title>
+<style>
+:root{color-scheme:dark;font-family:Inter,system-ui,Arial,sans-serif}*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#070b16;color:#f4f7ff}canvas{display:block}#hud{position:fixed;inset:0;pointer-events:none;display:none}.top{position:absolute;top:18px;left:18px;right:18px;display:flex;justify-content:space-between;gap:12px}.panel{background:#091225c9;border:1px solid #7d91b84a;border-radius:13px;padding:12px 16px;backdrop-filter:blur(10px);box-shadow:0 8px 30px #0003}.label{font-size:11px;letter-spacing:2px;color:#8fa7cf;text-transform:uppercase}.value{font-size:24px;font-weight:800;margin-top:3px}.bottom{position:absolute;bottom:20px;left:50%;transform:translateX(-50%);text-align:center;background:#091225bb;border:1px solid #7d91b84a;border-radius:12px;padding:10px 16px;color:#c8d6ef;font-size:13px;white-space:nowrap}.crosshair{position:absolute;left:50%;top:50%;width:22px;height:22px;transform:translate(-50%,-50%)}.crosshair:before,.crosshair:after{content:"";position:absolute;background:#e8f5ff;box-shadow:0 0 8px #55dcff}.crosshair:before{width:2px;height:22px;left:10px}.crosshair:after{height:2px;width:22px;top:10px}.bar{width:150px;height:7px;background:#273650;border-radius:8px;margin-top:7px;overflow:hidden}.bar span{display:block;height:100%;width:100%;background:linear-gradient(90deg,#46e5c3,#69a8ff);transition:width .15s}#overlay{position:fixed;inset:0;display:grid;place-items:center;background:radial-gradient(ellipse at 50% 35%,#182d51d9,#050914f5 75%);padding:20px}.card{width:min(520px,100%);padding:34px;border-radius:22px;background:#0b1427eF;border:1px solid #91b8ff38;box-shadow:0 25px 90px #0008}.eyebrow{font-size:12px;letter-spacing:3px;color:#6be7e1;font-weight:800}.title{font-size:clamp(38px,8vw,64px);font-weight:900;letter-spacing:-2px;line-height:1;margin:12px 0}.title span{color:#68e5e2}.desc{color:#b2c1db;line-height:1.65}.controls{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:22px 0}.control{background:#111f37;border:1px solid #8da7d52b;border-radius:10px;padding:11px;font-size:13px;color:#cbd8ef}.control b{color:#fff;display:block;margin-bottom:4px}.btn{border:0;border-radius:11px;background:linear-gradient(100deg,#63e6df,#70a7ff);color:#071321;font-size:15px;font-weight:900;padding:14px 20px;width:100%;cursor:pointer}.btn:hover{filter:brightness(1.08)}.small{font-size:12px;color:#7f92b2;margin-top:14px}#toast{position:absolute;top:27%;left:50%;transform:translateX(-50%);font-size:20px;font-weight:900;color:#79fff0;text-shadow:0 0 18px #25dcca;opacity:0;transition:opacity .2s}
+@media(max-width:520px){.top{top:8px;left:8px;right:8px}.panel{padding:9px 11px}.value{font-size:19px}.bottom{bottom:10px;font-size:11px}.card{padding:24px}.controls{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<div id="overlay"><div class="card"><div class="eyebrow">ARCADE SIMULATION / 001</div><div class="title">PULSE<br><span>ARENA</span></div><p class="desc">Enter a neon training arena, tag the roaming practice drones, and rack up points before the round ends. No downloads required.</p><div class="controls"><div class="control"><b>W A S D</b>Move around</div><div class="control"><b>MOUSE</b>Look around</div><div class="control"><b>CLICK</b>Send a pulse</div><div class="control"><b>ESC</b>Pause the game</div></div><button class="btn" id="start">ENTER ARENA</button><div class="small">Best played on desktop with a mouse and keyboard.</div></div></div>
+<div id="hud"><div class="top"><div class="panel"><div class="label">Score</div><div class="value" id="score">0000</div></div><div class="panel"><div class="label">Round time</div><div class="value" id="time">60</div></div><div class="panel"><div class="label">Energy</div><div class="bar"><span id="energy"></span></div></div></div><div class="crosshair"></div><div id="toast">TAG CONFIRMED +100</div><div class="bottom">WASD MOVE &nbsp; • &nbsp; MOUSE LOOK &nbsp; • &nbsp; CLICK PULSE &nbsp; • &nbsp; ESC PAUSE</div></div>
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js';
+
+const overlay=document.querySelector('#overlay'),hud=document.querySelector('#hud'),startBtn=document.querySelector('#start');
+const scoreEl=document.querySelector('#score'),timeEl=document.querySelector('#time'),energyEl=document.querySelector('#energy'),toast=document.querySelector('#toast');
+const scene=new THREE.Scene();scene.background=new THREE.Color(0x070d1b);scene.fog=new THREE.Fog(0x070d1b,22,65);
+const camera=new THREE.PerspectiveCamera(76,innerWidth/innerHeight,.1,100);camera.position.set(0,1.7,9);
+const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(innerWidth,innerHeight);renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.outputColorSpace=THREE.SRGBColorSpace;document.body.appendChild(renderer.domElement);
+scene.add(new THREE.HemisphereLight(0x9dc7ff,0x101322,2.1));
+const keyLight=new THREE.DirectionalLight(0xffffff,2.1);keyLight.position.set(5,12,4);keyLight.castShadow=true;scene.add(keyLight);
+const cyan=new THREE.PointLight(0x26d9ff,28,20);cyan.position.set(-8,4,-5);scene.add(cyan);
+const violet=new THREE.PointLight(0x8c54ff,24,20);violet.position.set(8,4,5);scene.add(violet);
+const mat=(color,roughness=.72,metalness=.12)=>new THREE.MeshStandardMaterial({color,roughness,metalness});
+const floorMat=mat(0x101b30),wallMat=mat(0x172741),trimMat=new THREE.MeshStandardMaterial({color:0x3bd9ed,emissive:0x087f9b,emissiveIntensity:1.3,metalness:.5,roughness:.3});
+const floor=new THREE.Mesh(new THREE.PlaneGeometry(44,44),floorMat);floor.rotation.x=-Math.PI/2;floor.position.y=0;floor.receiveShadow=true;scene.add(floor);
+const grid=new THREE.GridHelper(44,44,0x2b8aab,0x1b3450);grid.position.y=.012;scene.add(grid);
+function box(x,y,z,sx,sy,sz,material){const m=new THREE.Mesh(new THREE.BoxGeometry(sx,sy,sz),material);m.position.set(x,y,z);m.castShadow=true;m.receiveShadow=true;scene.add(m);return m}
+const obstacles=[];
+for(const [x,z,sx,sz] of [[-7,-6,3,3],[6,-7,4,2],[-8,5,2,4],[7,5,3,3],[0,-10,5,1.4],[0,8,4,1.5],[-12,0,1.4,5],[12,0,1.4,5]]){
+ box(x,sySafe(sx,sz),z,sx,2.6,sz,wallMat);obstacles.push({x,z,sx,sz});
+}
+function sySafe(){return 1.3}
+for(let i=-10;i<=10;i+=2){box(i,3,-13,.08,6,.08,trimMat);box(i,3,13,.08,6,.08,trimMat);box(-13,3,i,.08,6,.08,trimMat);box(13,3,i,.08,6,.08,trimMat)}
+for(let i=0;i<18;i++){const a=i/18*Math.PI*2;const p=box(Math.cos(a)*10,.13,Math.sin(a)*10,.45,.25,.45,trimMat);p.rotation.y=a}
+const player={x:0,z:9,speed:5.7};let yaw=0,pitch=0,playing=false,score=0,seconds=60,energy=100,lastShot=0,toastTimer=0;
+const keys={};const drones=[],pulses=[];const clock=new THREE.Clock();const raycaster=new THREE.Raycaster();
+function makeDrone(i){const g=new THREE.Group();const shell=new THREE.Mesh(new THREE.IcosahedronGeometry(.58,1),new THREE.MeshStandardMaterial({color:i%2?0xffb45e:0x65eaff,emissive:i%2?0x8a3d08:0x075e8a,emissiveIntensity:1.25,metalness:.5,roughness:.25}));shell.castShadow=true;g.add(shell);const ring=new THREE.Mesh(new THREE.TorusGeometry(.78,.045,8,32),trimMat);ring.rotation.x=Math.PI/2;g.add(ring);const eye=new THREE.Mesh(new THREE.SphereGeometry(.13,12,12),new THREE.MeshBasicMaterial({color:0xffffff}));eye.position.set(0,.04,.51);g.add(eye);g.position.set((Math.random()-.5)*18,.9,(Math.random()-.5)*18);g.userData={phase:Math.random()*6.28,speed:.8+Math.random()*.6,dir:Math.random()*6.28,tagged:false};scene.add(g);drones.push(g)}
+for(let i=0;i<8;i++)makeDrone(i);
+const pulseMat=new THREE.MeshBasicMaterial({color:0x8efff4});
+function showToast(){toast.style.opacity=1;toastTimer=.8}
+function startGame(){score=0;seconds=60;energy=100;scoreEl.textContent='0000';timeEl.textContent='60';energyEl.style.width='100%';overlay.style.display='none';hud.style.display='block';playing=true;clock.getDelta();renderer.domElement.requestPointerLock?.()}
+startBtn.addEventListener('click',startGame);
+document.addEventListener('pointerlockchange',()=>{if(document.pointerLockElement!==renderer.domElement&&playing){playing=false;overlay.style.display='grid';hud.style.display='none';startBtn.textContent='RESUME ARENA'}});
+document.addEventListener('mousemove',e=>{if(!playing||document.pointerLockElement!==renderer.domElement)return;yaw-=e.movementX*.0022;pitch-=e.movementY*.0022;pitch=Math.max(-1.25,Math.min(1.25,pitch))});
+document.addEventListener('keydown',e=>{keys[e.code]=true;if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code))e.preventDefault()});
+document.addEventListener('keyup',e=>keys[e.code]=false);
+document.addEventListener('mousedown',e=>{if(e.button!==0||!playing||document.pointerLockElement!==renderer.domElement||energy<12)return;const now=performance.now();if(now-lastShot<180)return;lastShot=now;energy-=12;energyEl.style.width=energy+'%';const dir=new THREE.Vector3();camera.getWorldDirection(dir);const origin=camera.position.clone().add(dir.clone().multiplyScalar(.65));const orb=new THREE.Mesh(new THREE.SphereGeometry(.09,10,10),pulseMat);orb.position.copy(origin);scene.add(orb);pulses.push({mesh:orb,dir,life:1.3});});
+function blocked(x,z){if(Math.abs(x)>12.2||Math.abs(z)>12.2)return true;return obstacles.some(o=>Math.abs(x-o.x)<o.sx/2+.35&&Math.abs(z-o.z)<o.sz/2+.35)}
+function endRound(){playing=false;document.exitPointerLock?.();hud.style.display='none';overlay.style.display='grid';document.querySelector('.eyebrow').textContent='ROUND COMPLETE';document.querySelector('.title').innerHTML='NICE<br><span>RUN!</span>';document.querySelector('.desc').textContent='Final score: '+score+'. Ready to take another run at the arena?';startBtn.textContent='PLAY AGAIN'}
+function animate(){requestAnimationFrame(animate);const dt=Math.min(clock.getDelta(),.04);if(playing&&document.pointerLockElement===renderer.domElement){
+seconds-=dt;if(seconds<=0){seconds=0;timeEl.textContent='0';endRound()}else timeEl.textContent=Math.ceil(seconds);
+energy=Math.min(100,energy+dt*7);energyEl.style.width=energy+'%';
+const forward=(keys.KeyW||keys.ArrowUp?1:0)-(keys.KeyS||keys.ArrowDown?1:0),side=(keys.KeyD||keys.ArrowRight?1:0)-(keys.KeyA||keys.ArrowLeft?1:0);
+const f=new THREE.Vector3(-Math.sin(yaw),0,-Math.cos(yaw)),r=new THREE.Vector3(Math.cos(yaw),0,-Math.sin(yaw));const nx=player.x+(f.x*forward+r.x*side)*player.speed*dt,nz=player.z+(f.z*forward+r.z*side)*player.speed*dt;if(!blocked(nx,player.z))player.x=nx;if(!blocked(player.x,nz))player.z=nz;
+camera.position.set(player.x,1.7,player.z);camera.rotation.order='YXZ';camera.rotation.y=yaw;camera.rotation.x=pitch;
+for(const d of drones){if(d.userData.tagged)continue;d.userData.phase+=dt*2;d.position.y=.9+Math.sin(d.userData.phase)*.18;d.rotation.y+=dt*.8;d.position.x+=Math.cos(d.userData.dir)*d.userData.speed*dt;d.position.z+=Math.sin(d.userData.dir)*d.userData.speed*dt;if(Math.abs(d.position.x)>10||Math.abs(d.position.z)>10)d.userData.dir+=Math.PI*(.7+Math.random()*.6);if(Math.random()<dt*.15)d.userData.dir+=(Math.random()-.5)*1.5}
+for(let i=pulses.length-1;i>=0;i--){const p=pulses[i];p.life-=dt;p.mesh.position.addScaledVector(p.dir,dt*24);let hit=false;for(const d of drones){if(d.userData.tagged)continue;if(p.mesh.position.distanceTo(d.position)<.72){d.userData.tagged=true;scene.remove(d);score+=100;scoreEl.textContent=String(score).padStart(4,'0');showToast();hit=true;setTimeout(()=>{const idx=drones.indexOf(d);if(idx>=0){drones.splice(idx,1);makeDrone(Math.random()*10)}},1200);break}}if(p.life<=0||hit){scene.remove(p.mesh);pulses.splice(i,1)}}
+if(toastTimer>0){toastTimer-=dt;if(toastTimer<=0)toast.style.opacity=0}
+}
+renderer.render(scene,camera)}
+function resize(){camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)}
+addEventListener('resize',resize);animate();
+</script>
+</body>
+</html>
